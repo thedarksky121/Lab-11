@@ -1,151 +1,135 @@
+<?php
+include 'connect.php';
+
+$data = [];
+$sql = "SELECT component, expenditure_2011 FROM domestic_visitors";
+$result = $conn->query($sql);
+
+while ($row = $result->fetch_assoc()) {
+    $data[] = $row;
+}
+$conn->close();
+?>
+
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Domestic Tourists Expenditure (2010 & 2011)</title>
+    <title>Domestic Visitors Graph (2011)</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
     <style>
         body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #f0f4f8;
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
+            margin: 0;
             padding: 20px;
         }
 
-        .wrapper {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 40px;
-        }
-
-        .chart-wrapper {
-            width: 100%;
-            max-width: 500px;
-            background: #ffffff;
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.1);
-        }
-
-        h2, h3 {
-            text-align: center;
-        }
-
         .chart-container {
-            position: relative;
-            height: 400px;
-            margin-top: 20px;
+            width: 90%;
+            max-width: 700px;
+            margin: auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            height: 420px;
         }
 
-        canvas {
+        #barChart {
             width: 100% !important;
             height: 100% !important;
+        }
+
+        h2 {
+            text-align: center;
         }
     </style>
 </head>
 <body>
 
-<h2>Domestic Tourists Expenditure Comparison (2010 vs 2011)</h2>
-<div class="wrapper">
-    <!-- 2010 Pie Chart (Left) -->
-    <div class="chart-wrapper">
-        <h3>Year 2010</h3>
-        <div class="chart-container">
-            <canvas id="pieChart2010"></canvas>
-        </div>
-    </div>
-
-    <!-- 2011 Pie Chart (Right) -->
-    <div class="chart-wrapper">
-        <h3>Year 2011</h3>
-        <div class="chart-container">
-            <canvas id="pieChart2011"></canvas>
-        </div>
-    </div>
+<div class="chart-container">
+    <h2>Expenditure by Domestic Visitors (2011)</h2>
+    <canvas id="barChart"></canvas>
 </div>
 
 <script>
-    const labels = [
-        'Food & beverages',
-        'Transport',
-        'Accommodation',
-        'Shopping',
-        'Expenditure before trip',
-        'Other activities'
-    ];
+    const ctx = document.getElementById('barChart').getContext('2d');
 
-    const values2010 = [6448, 6220, 6096, 2603, 595, 1722];
-    const values2011 = [7756, 7417, 4985, 3801, 801, 2249];
+    const labels = <?php echo json_encode(array_column($data, 'component')); ?>;
+    const data2011 = <?php echo json_encode(array_column($data, 'expenditure_2011')); ?>;
+    const data2010 = <?php
+        // Add this before closing PHP: get expenditure_2010 values
+        $conn = new mysqli("localhost", "root", "", "expenditure_db");
+        $result2 = $conn->query("SELECT expenditure_2010 FROM domestic_visitors");
+        $data2010 = [];
+        while ($row = $result2->fetch_assoc()) $data2010[] = $row['expenditure_2010'];
+        echo json_encode($data2010);
+    ?>;
 
-    const total2010 = values2010.reduce((a, b) => a + b, 0);
-    const total2011 = values2011.reduce((a, b) => a + b, 0);
-
-    // PIE CHART 2010
-    new Chart(document.getElementById('pieChart2010').getContext('2d'), {
-        type: 'pie',
+    new Chart(ctx, {
+        type: 'bar',
         data: {
             labels: labels,
-            datasets: [{
-                data: values2010,
-                backgroundColor: ['#B5E48C', '#99D98C', '#76C893', '#52B69A', '#34A0A4', '#168AAD'],
-                borderColor: '#fff',
-                borderWidth: 2
-            }]
+            datasets: [
+                {
+                    label: '2010 (RM million)',
+                    data: data2010,
+                    backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    borderRadius: 5
+                },
+                {
+                    label: '2011 (RM million)',
+                    data: data2011,
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1,
+                    borderRadius: 5
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                datalabels: {
-                    formatter: (value) => {
-                        const percent = ((value / total2010) * 100).toFixed(1);
-                        return `RM ${value.toLocaleString()}\n(${percent}%)`;
+                legend: { display: true },
+                zoom: {
+                    zoom: {
+                        wheel: { enabled: true },
+                        pinch: { enabled: true },
+                        mode: 'x'
                     },
-                    color: '#fff',
-                    font: { weight: 'bold', size: 12 }
+                    pan: {
+                        enabled: true,
+                        mode: 'x'
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Expenditure (RM millions)'
+                    }
                 },
-                legend: {
-                    position: 'right',
-                    labels: { boxWidth: 20, padding: 15 }
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Component'
+                    },
+                    ticks: {
+                        maxRotation: 45,
+                        minRotation: 0
+                    }
                 }
             }
-        },
-        plugins: [ChartDataLabels]
-    });
-
-    // PIE CHART 2011
-    new Chart(document.getElementById('pieChart2011').getContext('2d'), {
-        type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: values2011,
-                backgroundColor: ['#FFADAD', '#FFD6A5', '#FDFFB6', '#CAFFBF', '#9BF6FF', '#A0C4FF'],
-                borderColor: '#fff',
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                datalabels: {
-                    formatter: (value) => {
-                        const percent = ((value / total2011) * 100).toFixed(1);
-                        return `RM ${value.toLocaleString()}\n(${percent}%)`;
-                    },
-                    color: '#333',
-                    font: { weight: 'bold', size: 12 }
-                },
-                legend: {
-                    position: 'right',
-                    labels: { boxWidth: 20, padding: 15 }
-                }
-            }
-        },
-        plugins: [ChartDataLabels]
+        }
     });
 </script>
+
 
 </body>
 </html>
